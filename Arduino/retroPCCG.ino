@@ -42,7 +42,7 @@ void setup() {
   
   M5.Lcd.setBrightness(200);    // BRIGHTNESS = MAX 255
   M5.Lcd.fillScreen(WHITE);     // CLEAR SCREEN
-  M5.Lcd.setRotation(0);        // SCREEN ROTATION = 0
+  //M5.Lcd.setRotation(0);        // SCREEN ROTATION = 0
   delay(5000);
   SD.begin();
   Serial.print("SD Begin");
