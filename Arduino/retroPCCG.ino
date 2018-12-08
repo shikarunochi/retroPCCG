@@ -1,6 +1,6 @@
 #include <M5Stack.h>
 #include "SD.h"
-#define PAINT_BUFFER 1024
+#define PAINT_BUFFER 512
 #define CG_DIRECTORY "/cgData"
 
 const int DATA_END = -999;
@@ -443,4 +443,3 @@ void testBuffer(){
       }
     }
 }
-
