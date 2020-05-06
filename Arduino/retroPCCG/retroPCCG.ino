@@ -1,7 +1,9 @@
 #include <M5Stack.h>
 #include "SD.h"
+#include <M5StackUpdater.h>  // https://github.com/tobozo/M5Stack-SD-Updater/
+
 #define PAINT_BUFFER 512
-#define CG_DIRECTORY "/cgData"
+#define CG_DIRECTORY "/linePaintCgData"
 
 const int DATA_END = -999;
 const int STATUS_NONE = 0;//特に何もない状態。次に読んだ命令に従う
@@ -37,8 +39,13 @@ void randomDraw();
 uint16_t rgb565( const unsigned long rgb);
 
 void setup() {
-  Serial.begin(115200);         // SERIAL
   M5.begin();                   // M5STACK INITIALIZE
+  
+  if (digitalRead(BUTTON_A_PIN) == 0) {
+    Serial.println("Will Load menu binary");
+    updateFromFS(SD);
+    ESP.restart();
+  }
   
   M5.Lcd.setBrightness(200);    // BRIGHTNESS = MAX 255
   M5.Lcd.fillScreen(WHITE);     // CLEAR SCREEN
