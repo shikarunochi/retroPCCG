@@ -38,6 +38,7 @@ void Draw();
 void randomDraw();
 uint16_t rgb565( const unsigned long rgb);
 
+int wait = 0;
 void setup() {
   M5.begin();                   // M5STACK INITIALIZE
   
@@ -48,14 +49,34 @@ void setup() {
   }
   
   M5.Lcd.setBrightness(200);    // BRIGHTNESS = MAX 255
-  M5.Lcd.fillScreen(WHITE);     // CLEAR SCREEN
+  M5.Lcd.fillScreen(BLACK);     // CLEAR SCREEN
   //M5.Lcd.setRotation(0);        // SCREEN ROTATION = 0
-  delay(5000);
   SD.begin();
   Serial.print("SD Begin");
+  M5.Lcd.setTextColor(WHITE);
+  M5.Lcd.setCursor(0, 0);
+  M5.Lcd.setTextSize(2);
+  M5.Lcd.println("NO WAIT:A");
+  M5.Lcd.println("NORMAL SPEED:B");
+  M5.Lcd.println("SLOW SPEED:C");
+  while (1) {
+    M5.update();
+    if (M5.BtnA.wasPressed()) {
+      break;
+    }
+    if (M5.BtnB.wasPressed()) {
+      wait= 1;
+      break;
+    }
+    if (M5.BtnC.wasPressed()) {
+      wait= 10;
+      break;
+    }
+  }  
+  M5.Lcd.fillScreen(WHITE);     // CLEAR SCREEN
+  delay(1000);
   randomDraw();
 }
-
 
 void randomDraw(){
   String fileNameList[100];
@@ -63,7 +84,6 @@ void randomDraw(){
   File cgRoot;
 
   cgRoot = SD.open(CG_DIRECTORY);
-
   int fileCount = 0;
   while(1){
     File entry =  cgRoot.openNextFile();
@@ -78,7 +98,14 @@ void randomDraw(){
     entry.close();
   }
   cgRoot.close();
-
+  
+  if(fileCount == 0)
+  {
+    M5.Lcd.fillScreen(BLACK);
+    M5.Lcd.setCursor(0, 0);
+    M5.Lcd.printf("put CG Data \ninto SD:%s\n", CG_DIRECTORY );
+    return;
+  }
   //TODO:シャッフル
 
   for(int index = 0;index < fileCount;index++){
@@ -281,7 +308,7 @@ void drawline(int startX, int startY, int endX, int endY, long color) {
       startY += sy;
     }
   }
-  //delay(30);//ゆっくり描く
+  delay(wait);//ゆっくり描く
 }
 
 bool paint(int paintX, int paintY, long color){
