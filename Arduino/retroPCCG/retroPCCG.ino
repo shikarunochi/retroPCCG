@@ -121,10 +121,10 @@ void drawPicture(String fileName){
       screenBuffer[x][y]=false;
     }
   }
-
-  File dataFile = SD.open(fileName, FILE_READ);
+  String filePath = String(CG_DIRECTORY) + "/" + fileName;
+  File dataFile = SD.open(filePath, FILE_READ);
   Serial.print("FileOpen:");
-  Serial.println(fileName);
+  Serial.println(filePath);
   if(!dataFile){
     Serial.println("File not exist");
     return;
