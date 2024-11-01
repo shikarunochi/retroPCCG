@@ -1,4 +1,4 @@
-#include <M5Atom.h>  
+#include <M5Unified.h>  
 #include "FS.h"
 #include <SPIFFS.h>
 #include "lgfx.h"
@@ -40,22 +40,50 @@ void Draw();
 void randomDraw();
 uint16_t rgb565( const unsigned long rgb);
 
-int wait = 0;
+#ifdef W240
+M5Canvas canvas(&m5lcd);
+#endif
+
+#if defined(_M5ATOMS3)
+#define BUTTON_A_PIN 41
+#else
+#define BUTTON_A_PIN 39
+#endif
+
+int wait = 1;
 void setup() {
-  M5.begin();                   // M5STACK INITIALIZE
-  
-  M5.begin(true,false,true); 
+  auto cfg = M5.config();
+  cfg.internal_imu=false;
+  M5.begin(cfg);
+
   if (!SPIFFS.begin()) { 
     Serial.println("SPIFFS Mount Failed");
     return;
   }
   m5lcd.init();
-  m5lcd.setRotation(3);
+  m5lcd.setRotation(1);
+  //m5lcd.setRotation(3);
   m5lcd.setColorDepth(16);
   m5lcd.fillScreen(BLACK);     // CLEAR SCREEN
   //M5.Lcd.setRotation(0);        // SCREEN ROTATION = 0
-  wait= 0;
-  delay(1000);
+  //wait= 1;
+  #ifdef W240
+   canvas.setColorDepth(8);
+   canvas.createSprite(320,240); 
+   canvas.fillScreen(BLACK); 
+  #endif
+
+  #ifdef _M5ATOMS3
+  //GROVE接続外部LED点灯処理
+  pinMode(1, OUTPUT); // 1番ピンを出力モードに変更
+  #endif
+
+  if(digitalRead(BUTTON_A_PIN) == 0) //ボタン押されてたら最速
+  {
+     wait = 0;
+  }
+
+  delay(1000);  
   randomDraw();
 }
 
@@ -87,11 +115,31 @@ void randomDraw(){
     m5lcd.printf("put CG Data \ninto :%s\n", CG_DIRECTORY );
     return;
   }
-  //TODO:シャッフル
+  //ソート
+  sortList(fileNameList, fileCount);
+
 
   for(int index = 0;index < fileCount;index++){
     drawPicture(fileNameList[index]);
-    delay(3000);
+    if(wait == 0){
+      delay(200);
+    }else{
+      for(int i = 0;i < 5;i++){
+      #ifdef _M5ATOMS3
+      digitalWrite(1, HIGH); // 1番ピンをHIGH（3.3V）に
+      delay(200);
+      digitalWrite(1, LOW); //1番ピンをLOW（0V）に
+      delay(200);
+      digitalWrite(1, HIGH); // 1番ピンをHIGH（3.3V）に
+      delay(400);
+      digitalWrite(1, LOW); //1番ピンをLOW（0V）に
+      delay(200);
+      #else
+      delay(1000);
+      #endif
+
+     }
+    }
   }
 
 }
@@ -103,7 +151,7 @@ void drawPicture(String fileName){
     }
   }
 
-  File dataFile = SPIFFS.open(fileName, FILE_READ);
+  File dataFile = SPIFFS.open("/" + fileName, FILE_READ);
   Serial.print("FileOpen:");
   Serial.println(fileName);
   if(!dataFile){
@@ -128,7 +176,9 @@ void drawPicture(String fileName){
   int frameColor = getData(dataFile);
   
   m5lcd.fillScreen(bgColor);     // CLEAR SCREEN
-
+  #ifdef W240
+      canvas.fillScreen(bgColor);
+  #endif
   int offsetX = 0; 
   int offsetY = 0;
 
@@ -159,7 +209,7 @@ void drawPicture(String fileName){
         fileEnd = true;
       }
     }else if(status == STATUS_LINE){
-      wait= 1;
+      //wait= 1;
       if(nextData == -1){
         status = STATUS_NONE;
       }else{
@@ -173,7 +223,7 @@ void drawPicture(String fileName){
         }
       }
     }else if(status == STATUS_LINE_NEXT){
-      wait= 1;
+      //wait= 1;
       if (nextData <= endCheckValue){
         status =STATUS_LINE;
       }else{
@@ -185,7 +235,7 @@ void drawPicture(String fileName){
         startY = endY;
       }
     }else if (status == STATUS_PAINT){
-      wait= 2;
+      //wait= 2;
       if (nextData <= endCheckValue){
         status =STATUS_NONE;
       }else{
@@ -196,7 +246,7 @@ void drawPicture(String fileName){
         status = STATUS_PAINT_NEXT;
       }
     }else if (status == STATUS_PAINT_NEXT){
-      wait= 2;
+      //wait= 2;
       if (nextData <= endCheckValue){
         status =STATUS_PAINT;
       }else{
@@ -205,7 +255,7 @@ void drawPicture(String fileName){
         paint(int(paintX * rateX) + offsetX, int(paintY * rateY) + offsetY,color);
       }
     }else if(status == STATUS_LAST_PAINT){
-      wait= 2;
+      //wait= 2;
       if (nextData <= endCheckValue){
         status =STATUS_NONE;
       }else{
@@ -261,10 +311,10 @@ long getData(File dataFile){
 
 void loop() {
   // put your main code here, to run repeatedly:
-  //loop内では何もしません。
   randomDraw();
 }
 
+int pushCount = 0;
 void drawline(int startX, int startY, int endX, int endY, long color) {
   //Serial.print("drawLine:");
   //Serial.print(startX);Serial.print(",");Serial.print(startY);Serial.print(",");
@@ -278,7 +328,11 @@ void drawline(int startX, int startY, int endX, int endY, long color) {
   int e2;
   while(true) {
     if(startX >= 0 && startX < 320 && startY >= 0 && startY < 240){
+  #ifdef W240
+      canvas.drawPixel(startX - 40, startY , color);
+  #else
       m5lcd.drawPixel(startX - 40, startY , color);
+  #endif
       screenBuffer[startX][startY] = true;
     }
 
@@ -295,7 +349,17 @@ void drawline(int startX, int startY, int endX, int endY, long color) {
       startY += sy;
     }
   }
+  #ifdef W240
+  pushCount++;
+  if(pushCount > 10){
+        canvas.pushRotateZoomWithAA(160,120,0,0.85,1);
+        pushCount = 0;
+  }
+      //canvas.pushSprite(0,0);
+  #endif
+
   delay(wait);//ゆっくり描く
+
 }
 
 bool paint(int paintX, int paintY, long color){
@@ -430,12 +494,19 @@ void lastPaint(int startX,int startY,int endX,int endY,long color){
     int x = startX;
     while (x <= endX){
       if (screenBuffer[x][y] == false){
+  #ifdef W240
+      canvas.drawPixel(x - 40, y , color);
+  #else
         m5lcd.drawPixel(x - 40, y , color);
+  #endif
       }
       x = x  + 1;
     }
     y = y + 1;
   }
+  #ifdef W240
+      canvas.pushRotateZoomWithAA(160,120,0,0.85,1);
+  #endif
 }
 
 
@@ -463,4 +534,27 @@ void testBuffer(){
         }
       }
     }
+}
+
+/* bubble sort filenames */
+//https://github.com/tobozo/M5Stack-SD-Updater/blob/master/examples/M5Stack-SD-Menu/M5Stack-SD-Menu.ino
+void sortList(String fileList[], int fileListCount) { 
+  bool swapped;
+  String temp;
+  String name1, name2;
+  do {
+    swapped = false;
+    for(int i = 0; i < fileListCount-1; i++ ) {
+      name1 = fileList[i];
+      name1.toUpperCase();
+      name2 = fileList[i+1];
+      name2.toUpperCase();
+      if (name1.compareTo(name2) > 0) {
+        temp = fileList[i];
+        fileList[i] = fileList[i+1];
+        fileList[i+1] = temp;
+        swapped = true;
+      }
+    }
+  } while (swapped);
 }
